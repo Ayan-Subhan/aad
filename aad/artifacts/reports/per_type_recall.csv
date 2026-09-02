@@ -1,0 +1,7 @@
+class,support,MLP,CNN,LSTM
+Benign,202599,99.998,99.998,99.731
+Type1 DoS-Hulk,21780,99.995,100.0,99.775
+Type2 DoS-SlowHTTPTest,9,100.0,100.0,100.0
+Type3 BruteForce-Web,51,66.667,49.02,0.0
+Type4 BruteForce-XSS,23,95.652,39.13,0.0
+Type5 SQL-Injection,7,100.0,71.429,0.0

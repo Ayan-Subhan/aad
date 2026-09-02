@@ -1,0 +1,54 @@
+# Phase 2 - baseline NIDS architectures and training schedule.
+#
+# All three models take a flat (n_features,) input and emit a 2-unit softmax.
+# The softmax is deliberate: ART's white-box attacks differentiate a probability
+# vector under CategoricalCrossentropy. A single sigmoid unit gives DeepFool
+# nothing to work with.
+#
+# CNN and LSTM reshape internally rather than taking (n_features, 1) from the
+# caller, so every model shares one input space. Phase 3 then perturbs all three
+# in the same 68-dim domain, and one validator/discriminator serves all of them.
+
+seed: 42
+
+training:
+  epochs: 30
+  batch_size: 1024
+  optimizer: adam
+  learning_rate: 0.001
+  loss: categorical_crossentropy   # paired with one-hot labels + 2-unit softmax
+  early_stopping:
+    monitor: val_loss
+    patience: 4
+    restore_best_weights: true
+  reduce_lr:
+    monitor: val_loss
+    factor: 0.5
+    patience: 2
+    min_lr: 1.0e-5
+  # Attack traffic is 9.74% of the deduplicated set. The paper does not weight,
+  # so neither do we by default; flip this on to trade accuracy for rare-class
+  # recall and report both.
+  class_weight: false
+
+models:
+  mlp:
+    hidden_units: [128, 64, 32]
+    activation: relu
+    dropout: 0.2
+
+  cnn:
+    conv_blocks:
+      - {filters: 64,  kernel_size: 3, pool: 2}
+      - {filters: 128, kernel_size: 3, pool: null}   # null -> GlobalMaxPooling
+    dense_units: 64
+    dropout: 0.2
+
+  lstm:
+    units: 64
+    dense_units: 32
+    dropout: 0.2
+
+output:
+  models_dir: artifacts/models
+  reports_dir: artifacts/reports

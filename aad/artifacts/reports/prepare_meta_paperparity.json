@@ -1,0 +1,87 @@
+{
+  "seed": 42,
+  "raw_files": [
+    "Friday-16-02-2018_TrafficForML_CICFlowMeter.csv",
+    "Friday-23-02-2018_TrafficForML_CICFlowMeter.csv"
+  ],
+  "rows_ingested": 2097150,
+  "embedded_header_rows": 1,
+  "rows_after_cleaning": 2091441,
+  "raw_label_counts": {
+    "Benign": 1494781,
+    "Brute Force -Web": 362,
+    "Brute Force -XSS": 151,
+    "DoS attacks-Hulk": 461912,
+    "DoS attacks-SlowHTTPTest": 139890,
+    "SQL Injection": 53
+  },
+  "clean": {
+    "rows_in": 2097149,
+    "inf_cells": 7662,
+    "inf_by_column": {
+      "Flow Byts/s": 1954,
+      "Flow Pkts/s": 5708
+    },
+    "nan_cells": 11416,
+    "nan_by_column": {
+      "Flow Byts/s": 5708,
+      "Flow Pkts/s": 5708
+    },
+    "rows_dropped_nan": 5708,
+    "nan_rows_by_class": {
+      "Benign": 5708,
+      "Brute Force -Web": 0,
+      "Brute Force -XSS": 0,
+      "DoS attacks-Hulk": 0,
+      "DoS attacks-SlowHTTPTest": 0,
+      "SQL Injection": 0
+    },
+    "rows_out": 2091441
+  },
+  "n_features_before_constant_drop": 78,
+  "n_features": 68,
+  "constant_columns": [
+    "Bwd PSH Flags",
+    "Fwd URG Flags",
+    "Bwd URG Flags",
+    "CWE Flag Count",
+    "Fwd Byts/b Avg",
+    "Fwd Pkts/b Avg",
+    "Fwd Blk Rate Avg",
+    "Bwd Byts/b Avg",
+    "Bwd Pkts/b Avg",
+    "Bwd Blk Rate Avg"
+  ],
+  "split_ratios": "0.7/0.15/0.15",
+  "split_sizes": {
+    "train": 1464008,
+    "val": 313716,
+    "test": 313717
+  },
+  "scaling": {
+    "feature_range": [
+      0.0,
+      1.0
+    ],
+    "per_split": {
+      "train": {
+        "cells": 99552544,
+        "cells_out_of_range_before_clip": 2,
+        "fraction_clipped": 2.0089893433562078e-08
+      },
+      "val": {
+        "cells": 21332688,
+        "cells_out_of_range_before_clip": 5,
+        "fraction_clipped": 2.3438209005822427e-07
+      },
+      "test": {
+        "cells": 21332756,
+        "cells_out_of_range_before_clip": 13,
+        "fraction_clipped": 6.093914916572429e-07
+      }
+    }
+  },
+  "sample_frac": null,
+  "deduplicated": false,
+  "elapsed_seconds": 53.5
+}

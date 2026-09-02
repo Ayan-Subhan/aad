@@ -1,0 +1,8 @@
+paper_type,class,binary,total,train,val,test,pct_of_total
+-,Benign,benign,1489073,1042351,223361,223361,71.1984
+Type1,DoS attacks-Hulk,attack,461912,323338,69287,69287,22.0858
+Type2,DoS attacks-SlowHTTPTest,attack,139890,97923,20983,20984,6.6887
+Type3,Brute Force -Web,attack,362,253,54,55,0.0173
+Type4,Brute Force -XSS,attack,151,106,23,22,0.0072
+Type5,SQL Injection,attack,53,37,8,8,0.0025
+,ALL,,2091441,1464008,313716,313717,100.0
