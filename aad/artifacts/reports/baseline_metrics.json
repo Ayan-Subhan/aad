@@ -16,7 +16,7 @@
       "fnr": 0.0008687700045724737,
       "support_benign": 202599,
       "support_attack": 21870,
-      "loss": 0.0005476317205731027,
+      "loss": 0.0005414171866067768,
       "per_attack_type": {
         "Benign": {
           "support": 202599,
@@ -43,29 +43,29 @@
           "correct_rate": 1.0
         }
       },
-      "train_seconds": 162.1,
+      "train_seconds": 53.8,
       "epochs_run": 20,
       "params": 19234
     },
     "cnn": {
-      "accuracy": 0.9997906169671535,
-      "precision": 0.9997709888700591,
+      "accuracy": 0.9997950719252993,
+      "precision": 0.9998167827042873,
       "recall": 0.998079561042524,
-      "f1": 0.998924558954763,
-      "f1_weighted": 0.9997905378916876,
-      "tn": 202594,
-      "fp": 5,
+      "f1": 0.9989474165942063,
+      "f1_weighted": 0.9997949924385248,
+      "tn": 202595,
+      "fp": 4,
       "fn": 42,
       "tp": 21828,
-      "fpr": 2.467929259275712e-05,
+      "fpr": 1.9743434074205698e-05,
       "fnr": 0.0019204389574759945,
       "support_benign": 202599,
       "support_attack": 21870,
-      "loss": 0.0008001436229847162,
+      "loss": 0.0008687780218065205,
       "per_attack_type": {
         "Benign": {
           "support": 202599,
-          "correct_rate": 0.9999753207074072
+          "correct_rate": 0.9999802565659258
         },
         "Type1 DoS-Hulk": {
           "support": 21780,
@@ -88,37 +88,37 @@
           "correct_rate": 0.7142857142857143
         }
       },
-      "train_seconds": 2541.2,
+      "train_seconds": 1237.3,
       "epochs_run": 30,
       "params": 33346
     },
     "lstm": {
-      "accuracy": 0.9969973582098196,
-      "precision": 0.9755878657332615,
-      "recall": 0.994055784179241,
-      "f1": 0.9847352448249309,
-      "f1_weighted": 0.997009899503303,
-      "tn": 202055,
-      "fp": 544,
-      "fn": 130,
-      "tp": 21740,
-      "fpr": 0.002685107034091975,
-      "fnr": 0.00594421582075903,
+      "accuracy": 0.9983873051512681,
+      "precision": 0.9980548351241201,
+      "recall": 0.9853680841335163,
+      "f1": 0.9916708849109568,
+      "f1_weighted": 0.9983827002798903,
+      "tn": 202557,
+      "fp": 42,
+      "fn": 320,
+      "tp": 21550,
+      "fpr": 0.00020730605777915983,
+      "fnr": 0.014631915866483767,
       "support_benign": 202599,
       "support_attack": 21870,
-      "loss": 0.01702359501750583,
+      "loss": 0.009297936680956215,
       "per_attack_type": {
         "Benign": {
           "support": 202599,
-          "correct_rate": 0.997314892965908
+          "correct_rate": 0.9997926939422208
         },
         "Type1 DoS-Hulk": {
           "support": 21780,
-          "correct_rate": 0.9977502295684114
+          "correct_rate": 0.9894398530762167
         },
         "Type2 DoS-SlowHTTPTest": {
           "support": 9,
-          "correct_rate": 1.0
+          "correct_rate": 0.0
         },
         "Type3 BruteForce-Web": {
           "support": 51,
@@ -133,8 +133,8 @@
           "correct_rate": 0.0
         }
       },
-      "train_seconds": 7166.3,
-      "epochs_run": 30,
+      "train_seconds": 2486.3,
+      "epochs_run": 13,
       "params": 19042
     }
   }

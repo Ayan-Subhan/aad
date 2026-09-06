@@ -1,0 +1,66 @@
+# Phase 3 - adversarial example generation.
+#
+# Threat model: white-box, evasion, non-targeted. The adversary holds the
+# architecture, the weights and the training data, and perturbs at inference time
+# to flip attack -> benign. No poisoning, no black-box query budget.
+#
+# Every source row is a true-attack row, so on the generated set
+#     accuracy == recall == 1 - attack success rate
+# and the numbers are directly comparable to the paper's collapse figures
+# (MLP 24.95%, CNN 49.76%, LSTM 4.89%).
+
+seed: 42
+
+# 4 attacks x 3 models x 5000 = 60,000 adversarial samples (paper's Table II).
+n_samples: 5000
+
+# ART batches gradient computation; 512 keeps peak memory near 150 MB at 68
+# features while still saturating a CPU. Also the DeepFool batch size - see below.
+batch_size: 512
+
+attacks:
+  # eps is in input units, and phase 1 MinMax-scaled every feature to [0,1],
+  # so eps=0.1 is "10% of each feature's observed training range".
+  fgsm:
+    eps: 0.1
+  bim:
+    eps: 0.1
+    eps_step: 0.01
+    max_iter: 10
+  pgd:
+    eps: 0.1
+    eps_step: 0.01
+    max_iter: 40
+    # A random start inside the eps-ball makes the run non-reproducible for no
+    # gain here; the paper reports a single deterministic pass.
+    num_random_init: 0
+  deepfool:
+    max_iter: 50
+    # NOT an eps-budget. ART applies this as an overshoot multiplier (1 + epsilon)
+    # to push the sample just past the decision boundary it found. This is why
+    # DeepFool is absent from the sweep below.
+    epsilon: 1.0e-6
+    # ART's default is 10 ("top-10 classes by prediction"). We have 2 classes.
+    nb_grads: 2
+
+# Accuracy-vs-eps curve. Stronger evidence than the paper's single operating
+# point, and the shape is what shows whether a model degrades or falls off a
+# cliff. Runs on a fixed subset of the same rows to keep the cost sane:
+# 3 attacks x 3 models x 4 eps on 1000 rows, rather than on 5000.
+sweep:
+  enabled: true
+  n_samples: 1000
+  # The four coarse values are the ones the brief specifies. On these models they
+  # are almost all uninformative: every model is already at 0% by eps=0.05, so
+  # three of the four points sit flat on the floor and the curve says nothing
+  # about relative robustness. The extra values below 0.05 are where the models
+  # actually separate, and they are what makes this "a stronger result than the
+  # paper's single point" rather than a busier way of showing the same collapse.
+  eps: [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.3]
+  attacks: [fgsm, bim, pgd]
+
+output:
+  adversarial_dir: artifacts/adversarial
+  reports_dir: artifacts/reports
+  figures_dir: artifacts/reports/figures
+  models_dir: artifacts/models

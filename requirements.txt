@@ -12,3 +12,6 @@ seaborn==0.12.2
 imbalanced-learn==0.11.0
 tensorflow==2.13.1
 adversarial-robustness-toolbox==1.17.1
+
+# dev only - tests/ runs on synthetic fixtures, so it needs no dataset
+pytest==7.4.4
