@@ -22,18 +22,32 @@ TensorFlow 2.13 is CPU-only on native Windows (GPU support ended at 2.10). The
 models here are small enough that this costs minutes, not hours.
 
 **2. Download the raw data** into `data/raw/`. Two files from the CSE-CIC-IDS2018
-public bucket, ~684 MB total, no AWS account needed:
+public bucket, 717 MB total, no AWS account needed. **The bucket lives in
+`ca-central-1`** — it used to be `eu-west-3`, and that endpoint now answers 301
+`PermanentRedirect`:
 
 ```powershell
-aws s3 cp --no-sign-request --region eu-west-3 `
+aws s3 cp --no-sign-request --region ca-central-1 `
   "s3://cse-cic-ids2018/Processed Traffic Data for ML Algorithms/Friday-16-02-2018_TrafficForML_CICFlowMeter.csv" data\raw\
-aws s3 cp --no-sign-request --region eu-west-3 `
+aws s3 cp --no-sign-request --region ca-central-1 `
   "s3://cse-cic-ids2018/Processed Traffic Data for ML Algorithms/Friday-23-02-2018_TrafficForML_CICFlowMeter.csv" data\raw\
 ```
 
-No AWS CLI? The same two files are on Kaggle (`solarmainframe/ids-intrusion-csv`);
-download them manually and keep the filenames exactly as above, since
-`config/data.yaml` refers to them by name.
+No AWS CLI needed — the objects are public over plain HTTPS, and `-C -` resumes a
+dropped transfer rather than restarting 380 MB:
+
+```powershell
+$b = "https://cse-cic-ids2018.s3.ca-central-1.amazonaws.com/Processed%20Traffic%20Data%20for%20ML%20Algorithms"
+foreach ($f in "Friday-16-02-2018_TrafficForML_CICFlowMeter.csv",
+               "Friday-23-02-2018_TrafficForML_CICFlowMeter.csv") {
+  curl.exe -L --fail --retry 5 -C - -o "data\raw\$f" "$b/$f"
+}
+```
+
+Expected sizes: `02-16` is 333,723,605 bytes and `02-23` is 382,840,456 bytes. The
+same files are also on Kaggle (`solarmainframe/ids-intrusion-csv`); keep the
+filenames exactly as above either way, since `config/data.yaml` refers to them by
+name.
 
 **3. Rebuild the ignored artefacts** by running the phases in order. Everything is
 seeded (`seed: 42`), so you get identical splits and the same tables.
@@ -150,3 +164,120 @@ a single accuracy figure hides it completely.
 
 `training.class_weight: true` in `config/models.yaml` trades headline accuracy for
 rare-class recall if you want the comparison.
+
+## Phase 3 — AE generator
+
+```powershell
+python scripts\03_generate_ae.py --models mlp --attacks fgsm --n-samples 50 --no-sweep   # smoke test
+python scripts\03_generate_ae.py                                                          # full run
+```
+
+Wraps each Keras model in ART's `TensorFlowV2Classifier` and runs four white-box
+evasion attacks against it, producing 4 attacks x 3 models x 5,000 = **60,000
+adversarial samples**. Threat model: white-box, evasion, non-targeted.
+
+| Path | Contents |
+| --- | --- |
+| `artifacts/adversarial/{attack}_{model}.npz` | 12 files: `X_adv`, `X_clean`, `idx`, labels, before/after predictions, perturbation norms, JSON `meta` |
+| `artifacts/reports/table4_evasion.{csv,md}` | Table IV — evasion per (model, attack) |
+| `artifacts/reports/eps_sweep.csv` | accuracy-vs-eps curve |
+| `artifacts/reports/figures/fig{3,4}_*.png` | Figures 3 and 4 |
+
+Every knob lives in `config/attacks.yaml`.
+
+Four decisions that determine whether the numbers mean anything:
+
+- **One fixed set of 5,000 source rows, shared by all twelve cells.** Seeded, drawn
+  only from `y == 1` test rows. Same rows everywhere is what makes the twelve
+  results comparable, lets phase 5 pair each adversarial row with its exact clean
+  original, and lets phase 4 score catch-rate against an identical clean baseline.
+- **The true label is passed to `generate()`.** With `y=None` ART substitutes the
+  model's own prediction, which makes the result depend on model error and quietly
+  changes what "evasion" means.
+- **DeepFool is excluded from the eps sweep.** Its `epsilon` is an *overshoot
+  multiplier*, not an L-inf budget — sweeping it produces a curve that looks
+  meaningful and is not. `build_attack()` raises if you try. Its ART defaults also
+  need overriding: `batch_size=1` (would be 5,000 sequential passes) and
+  `nb_grads=10` (we have 2 classes).
+- **DeepFool runs against a logits view of the model**, the other three against the
+  softmax. DeepFool navigates distances to the decision boundary, which softmax
+  compresses; ART warns about it, and it is not cosmetic. On a smoke fixture the
+  fix cut DeepFool's mean L2 perturbation against the MLP from 3.77 to 0.85 for the
+  same 100% evasion. `as_logits()` shares the trained weights and changes no
+  prediction — softmax is monotone, so `argmax` is identical.
+- **Both the clean and the perturbed prediction are stored**, so evasion can be
+  measured over the rows the model actually got right.
+
+Resumable: a cell whose `.npz` exists is skipped unless `--force`. Two assertions
+fail the run loudly if adversarial rows escape `[0,1]` or exceed their eps budget —
+both would invalidate every downstream phase while still writing plausible files.
+
+**Sample composition caveat.** The test split holds 21,870 attack rows, 21,780 of
+them DoS-Hulk; the web-attack classes have 7–51 rows each. The 5,000 source rows
+are therefore ~99.6% Hulk, and stratifying across attack types is not possible at
+this scale. State it rather than paper over it.
+
+## Phase 4 — inbound analyzer + validator
+
+```powershell
+python scripts\04_analyze_validate.py
+```
+
+Mines benign **training** flows into `artifacts/rules.json`, then measures the gate
+on data it never saw.
+
+| Family | Rule | Mined from |
+| --- | --- | --- |
+| Range | per-feature `[min, max]`, padded 1% of span | benign train |
+| Integrality | count-like columns must be whole numbers | discovered empirically, not hardcoded |
+| Dependency | 14 arithmetic invariants (ordering, product, rate) | tolerance = 99.9th pct of benign residual |
+| Distribution | robust median/MAD z-score | threshold calibrated on benign **val** at a 1% FPR budget |
+
+- Checks run in **raw units**, not scaled space — "whole number" becomes "on a
+  lattice of step `1/(max-min)`" after MinMax. `data_min`/`data_range` are copied
+  into `rules.json`, so the validator is pure numpy with no sklearn at inference.
+- The residual arithmetic lives in `validator.py` and `analyzer.py` **imports it**
+  to calibrate. Two copies could drift, and every tolerance would then gate
+  something other than what it was calibrated on.
+- Mine on train, calibrate on val, report on test. Calibrating the distribution
+  threshold on the rows it was mined from reports an optimistic FPR — the exact
+  leak this project criticises elsewhere.
+
+`artifacts/reports/table5_validator.{csv,md}` reports **catch-rate and FPR
+separately, per rule family**. A gate rejecting 3% of legitimate traffic is
+unusable whatever it catches, and per-family attribution is what tells you whether
+the defense rests on arithmetic (which an adaptive attacker can satisfy) or on
+distribution.
+
+**Do not quote the raw catch rate.** Every adversarial row is built from a real
+attack flow, and real attack flows already fall outside the benign envelope the
+rules were mined from — so the gate rejects a large share of *clean, unperturbed*
+attack rows too. A headline catch rate therefore partly measures maliciousness
+rather than perturbation. The table carries `clean_orig_%` (the same rows
+unperturbed) and `attributable_%` (rejected only after perturbation) beside it;
+`attributable_%` is what the gate actually contributes as an AE detector. This is
+why phase 3 stores `X_clean` in every `.npz`.
+
+Expect integrality alone to carry most of the catch rate. That is the honest
+finding: gradient attacks violate it *incidentally*, not because they are forced
+to. An adversary that rounds onto the integer lattice and re-derives the dependent
+features walks through untouched — which is what phase 8 exists to demonstrate.
+
+## Tests
+
+```powershell
+python -m pytest tests\ -v
+```
+
+Synthetic fixtures only — no dataset, no trained model, runs in seconds. They check
+the wiring rather than the algorithms: eps budgets are honoured, `clip_values` is
+applied, the wrapper rejects a sigmoid model, the row sampler is reproducible,
+DeepFool refuses an eps override, and the validator catches hand-built violations
+(fractional packet counts, `Min > Max`, a broken total) while passing clean traffic.
+
+## Background reading
+
+`docs/phase03-04-explained.md` walks through both phases from first principles —
+what an artefact is, why the models end in a 2-unit softmax rather than a sigmoid,
+what eps means and why MinMax scaling makes it meaningful, what each of the four
+attacks does, and why every validator threshold is calibrated rather than chosen.
